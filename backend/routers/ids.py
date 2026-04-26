@@ -1,29 +1,30 @@
 """
-SmartSec — IDS Router
-=====================
-Endpoints for the Intrusion Detection System module.
+SmartSec — IDS Router (Real Data Only)
+=======================================
+All dashboard data comes from the real `user_activity` and `alerts`
+tables populated by RequestLoggerMiddleware. Zero hardcoded values.
 
-Routes:
-  GET  /ids/status          — Model health check
-  GET  /ids/dashboard       — Full dashboard data (charts, stats, alerts)
-  POST /ids/simulate        — Simulate traffic, run detection, store results
+Endpoints:
+  GET  /ids/status          — ML model health
+  GET  /ids/dashboard       — Real aggregated stats + chart data
+  POST /ids/simulate        — Demo: inject synthetic events (clearly labelled)
+  POST /ids/resolve/{id}    — Mark an alert as resolved
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Path
 from database import get_supabase
 from services.ids_service import (
-    simulate_traffic,
-    detect_anomalies,
-    train_model,
-    get_model_status,
+    simulate_traffic, detect_anomalies, train_model,
+    get_model_status, ensure_trained,
 )
 from services.auth_service import decode_access_token
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import random
 from datetime import datetime, timezone, timedelta
+from collections import defaultdict
 
 router = APIRouter(prefix="/ids", tags=["IDS"])
 security = HTTPBearer()
+
 
 # ── Auth helper ───────────────────────────────────────────────────────────────
 def get_current_user(
@@ -43,7 +44,6 @@ def get_current_user(
 # ── GET /ids/status ───────────────────────────────────────────────────────────
 @router.get("/status")
 async def ids_status():
-    """Check the ML model status."""
     return {"module": "IDS", "status": "ready", **get_model_status()}
 
 
@@ -54,50 +54,44 @@ async def run_simulation(
     db=Depends(get_supabase),
 ):
     """
-    Simulate network traffic, run IsolationForest detection,
-    and persist results to Supabase.
+    DEMO MODE: Inject synthetic events to populate the dashboard for testing.
+    All inserted rows are tagged with action='SIMULATION' for transparency.
     """
-    # 1. Generate synthetic events
     raw_events = simulate_traffic(n_normal=90, n_attacks=10)
-
-    # 2. Train model on baseline first
-    train_model([])  # Uses synthetic normal baseline
-
-    # 3. Run anomaly detection
+    train_model([])
     scored_events = detect_anomalies(raw_events)
 
-    # 4. Insert all events into user_activity
     activity_rows = []
     for ev in scored_events:
         activity_rows.append({
-            "user_id":      user["id"],
-            "action":       ev.get("attack_type") or "api_request",
-            "endpoint":     "/api/request",
-            "method":       "POST",
-            "status_code":  int(ev.get("status_code", 200)),
-            "response_time": ev.get("response_time_ms", 100),
-            "is_anomaly":   ev["is_anomaly"],
+            "user_id":       user["id"],
+            "action":        f"SIMULATION:{ev.get('attack_type') or 'normal'}",
+            "endpoint":      "/ids/simulate",
+            "method":        "POST",
+            "status_code":   int(ev.get("status_code", 200)),
+            "response_time": float(ev.get("response_time_ms", 100)),
+            "source_ip":     ev.get("source_ip", "127.0.0.1"),
+            "is_anomaly":    ev["is_anomaly"],
             "anomaly_score": ev["anomaly_score"],
         })
 
-    # Batch insert (Supabase handles this well)
     try:
         db.table("user_activity").insert(activity_rows).execute()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"DB insert failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"DB insert failed: {e}")
 
-    # 5. Create alerts for detected anomalies
     anomalies = [e for e in scored_events if e["is_anomaly"]]
     alert_rows = []
     for ev in anomalies:
-        attack_type = ev.get("attack_type") or "Unknown"
+        atype = ev.get("attack_type") or "Unknown"
         score = ev["anomaly_score"]
-        severity = "High" if score >= 70 else ("Medium" if score >= 40 else "Low")
+        sev = "High" if score >= 70 else ("Medium" if score >= 40 else "Low")
         alert_rows.append({
             "user_id":    user["id"],
-            "alert_type": attack_type.upper().replace(" ", "_"),
-            "severity":   severity,
-            "message":    ev.get("description", f"Anomalous activity detected: {attack_type}"),
+            "alert_type": atype.upper().replace(" ", "_"),
+            "severity":   sev,
+            "message":    ev.get("description", f"Simulated anomaly: {atype}"),
+            "source_ip":  ev.get("source_ip", "127.0.0.1"),
             "is_read":    False,
             "resolved":   False,
         })
@@ -106,13 +100,14 @@ async def run_simulation(
         try:
             db.table("alerts").insert(alert_rows).execute()
         except Exception:
-            pass  # Alerts failing shouldn't break the simulation
+            pass
 
     return {
-        "total_events":     len(scored_events),
-        "anomalies_found":  len(anomalies),
-        "alerts_created":   len(alert_rows),
-        "normal_events":    len(scored_events) - len(anomalies),
+        "mode":            "simulation",
+        "total_events":    len(scored_events),
+        "anomalies_found": len(anomalies),
+        "alerts_created":  len(alert_rows),
+        "normal_events":   len(scored_events) - len(anomalies),
     }
 
 
@@ -123,103 +118,108 @@ async def ids_dashboard(
     db=Depends(get_supabase),
 ):
     """
-    Return all data needed to render the IDS dashboard.
-    Aggregates from: user_activity, alerts tables.
+    Full dashboard data from real DB rows.
+    - No hardcoded IPs, percentages, or dates.
+    - Trend data compares current vs previous 7-day window for real deltas.
     """
+    uid = user["id"]
+    now = datetime.now(timezone.utc)
+    seven_days_ago  = (now - timedelta(days=7)).isoformat()
+    fourteen_days_ago = (now - timedelta(days=14)).isoformat()
 
-    # ── Fetch last 7 days of activity ─────────────────────────────────────────
-    seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    # ── Fetch last 14 days of activity (for delta comparison) ─────────────
     try:
-        activity_res = (
+        act_res = (
             db.table("user_activity")
-            .select("*")
-            .eq("user_id", user["id"])
-            .gte("created_at", seven_days_ago)
+            .select("created_at,is_anomaly,anomaly_score,source_ip,status_code,endpoint,response_time")
+            .eq("user_id", uid)
+            .gte("created_at", fourteen_days_ago)
             .order("created_at", desc=True)
-            .limit(1000)
+            .limit(2000)
             .execute()
         )
-        activity = activity_res.data or []
+        all_activity = act_res.data or []
     except Exception:
-        activity = []
+        all_activity = []
 
-    # ── Fetch recent alerts ───────────────────────────────────────────────────
+    # Split into current vs previous week
+    current_week = [a for a in all_activity if a.get("created_at", "") >= seven_days_ago]
+    prev_week    = [a for a in all_activity if a.get("created_at", "") < seven_days_ago]
+
+    # ── Fetch real alerts ─────────────────────────────────────────────────
     try:
         alerts_res = (
             db.table("alerts")
             .select("*")
-            .eq("user_id", user["id"])
+            .eq("user_id", uid)
             .order("created_at", desc=True)
-            .limit(20)
+            .limit(50)
             .execute()
         )
         alerts = alerts_res.data or []
     except Exception:
         alerts = []
 
-    # ── Aggregate stats ───────────────────────────────────────────────────────
-    total_events     = len(activity)
-    anomalies        = [a for a in activity if a.get("is_anomaly")]
-    blocked_attacks  = len([a for a in alerts if a.get("resolved") is False and a.get("severity") == "High"])
-    high_risk_alerts = len([a for a in alerts if a.get("severity") == "High"])
-    false_positives  = max(0, len(anomalies) - len(alerts))
+    # ── Current-week stats ────────────────────────────────────────────────
+    total_events      = len(current_week)
+    anomalies_current = [a for a in current_week if a.get("is_anomaly")]
+    recent_alerts     = [a for a in alerts if a.get("created_at", "") >= seven_days_ago]
+    high_risk         = [a for a in recent_alerts if a.get("severity") == "High"]
+    blocked           = [a for a in recent_alerts if a.get("resolved") is True]
+    false_positives   = max(0, len(anomalies_current) - len(recent_alerts))
 
-    # If no real data, provide meaningful demo defaults
-    if total_events == 0:
-        total_events     = 0
-        anomalies_count  = 0
-        high_risk_alerts = 0
-        blocked_attacks  = 0
-        false_positives  = 0
-    else:
-        anomalies_count = len(anomalies)
+    # ── Previous-week stats (for real % deltas) ───────────────────────────
+    prev_total     = len(prev_week)
+    prev_anomalies = len([a for a in prev_week if a.get("is_anomaly")])
 
-    # ── Build 7-day trend data for the line chart ─────────────────────────────
-    trend_data = _build_trend_data(activity)
+    def _pct_change(curr, prev):
+        if prev == 0:
+            return None   # can't compute — no baseline
+        return round((curr - prev) / prev * 100, 1)
 
-    # ── System status donut chart ─────────────────────────────────────────────
-    normal_count   = total_events - len(anomalies)
-    blocked_count  = blocked_attacks
-    other_count    = max(0, len(anomalies) - blocked_count)
+    # ── 7-day trend for AreaChart ─────────────────────────────────────────
+    trend_data = _build_trend(current_week, now)
 
+    # ── System status donut ───────────────────────────────────────────────
+    normal_count   = total_events - len(anomalies_current)
+    blocked_count  = len(blocked)
+    anomalous_not_blocked = max(0, len(anomalies_current) - blocked_count)
     system_status = [
-        {"name": "Normal",    "value": normal_count,   "color": "#10b981"},
-        {"name": "Anomalous", "value": len(anomalies), "color": "#ef4444"},
-        {"name": "Blocked",   "value": blocked_count,  "color": "#8b5cf6"},
-        {"name": "Other",     "value": other_count,    "color": "#64748b"},
+        {"name": "Normal",    "value": normal_count,         "color": "#10b981"},
+        {"name": "Anomalous", "value": anomalous_not_blocked,"color": "#ef4444"},
+        {"name": "Blocked",   "value": blocked_count,        "color": "#8b5cf6"},
+        {"name": "False Positive", "value": false_positives, "color": "#64748b"},
     ]
 
-    # ── Top attack types donut chart ──────────────────────────────────────────
-    attack_counts: dict[str, int] = {}
-    for a in alerts:
+    # ── Top attack types from real alerts ────────────────────────────────
+    atk_counts: dict[str, int] = defaultdict(int)
+    for a in recent_alerts:
         atype = a.get("alert_type", "OTHER").replace("_", " ").title()
-        attack_counts[atype] = attack_counts.get(atype, 0) + 1
+        atk_counts[atype] += 1
 
-    attack_colors = {
-        "Brute Force":      "#ef4444",
-        "Sql Injection":    "#f97316",
-        "Port Scan":        "#f59e0b",
-        "Ddos Attempt":     "#8b5cf6",
-        "Suspicious Login": "#3b82f6",
-        "Other":            "#64748b",
+    ATTACK_COLORS = {
+        "Brute Force":       "#ef4444",
+        "Sql Injection":     "#f97316",
+        "Port Scan":         "#f59e0b",
+        "Ddos Attempt":      "#8b5cf6",
+        "Suspicious Login":  "#3b82f6",
+        "Behavioral Anomaly":"#06b6d4",
+        "Other":             "#64748b",
     }
-    top_attacks = [
-        {
-            "name":  name,
-            "value": count,
-            "color": attack_colors.get(name, "#64748b"),
-        }
-        for name, count in sorted(attack_counts.items(), key=lambda x: -x[1])
-    ]
+    top_attacks = sorted(
+        [{"name": k, "value": v,
+          "color": ATTACK_COLORS.get(k, "#64748b")} for k, v in atk_counts.items()],
+        key=lambda x: -x["value"]
+    )
 
-    # ── Format recent alerts table ────────────────────────────────────────────
+    # ── Recent alerts table (real source_ip, real timestamps) ────────────
     recent_alerts_table = []
     for a in alerts[:10]:
         recent_alerts_table.append({
             "id":          a.get("id"),
-            "time":        _format_time(a.get("created_at")),
+            "time":        _fmt_time(a.get("created_at")),
             "type":        a.get("alert_type", "UNKNOWN").replace("_", " ").title(),
-            "source_ip":   _random_ip(),   # We store alert type, not IP — simulate for display
+            "source_ip":   a.get("source_ip") or "N/A",
             "description": a.get("message", "Anomalous activity detected"),
             "severity":    a.get("severity", "Low"),
             "resolved":    a.get("resolved", False),
@@ -227,11 +227,14 @@ async def ids_dashboard(
 
     return {
         "stats": {
-            "total_events":     total_events,
-            "anomalies":        len(anomalies) if total_events > 0 else 0,
-            "high_risk_alerts": high_risk_alerts,
-            "blocked_attacks":  blocked_attacks,
-            "false_positives":  false_positives,
+            "total_events":       total_events,
+            "anomalies":          len(anomalies_current),
+            "high_risk_alerts":   len(high_risk),
+            "blocked_attacks":    blocked_count,
+            "false_positives":    false_positives,
+            # Real percentage deltas vs previous 7 days
+            "delta_events":       _pct_change(total_events, prev_total),
+            "delta_anomalies":    _pct_change(len(anomalies_current), prev_anomalies),
         },
         "trend_data":      trend_data,
         "system_status":   system_status,
@@ -239,51 +242,54 @@ async def ids_dashboard(
         "recent_alerts":   recent_alerts_table,
         "model_status":    get_model_status(),
         "protection_active": True,
+        "date_range": {
+            "from": (now - timedelta(days=7)).strftime("%b %d, %Y"),
+            "to":    now.strftime("%b %d, %Y"),
+        },
     }
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-def _build_trend_data(activity: list) -> list:
-    """Build a 7-point daily array for the anomaly line chart."""
-    from collections import defaultdict
-    days: dict[str, dict] = defaultdict(lambda: {"normal": 0, "anomalous": 0})
-    
-    for event in activity:
-        raw_ts = event.get("created_at", "")
-        try:
-            day_label = raw_ts[:10]  # "YYYY-MM-DD"
-        except Exception:
-            continue
-        if event.get("is_anomaly"):
-            days[day_label]["anomalous"] += 1
-        else:
-            days[day_label]["normal"] += 1
+# ── POST /ids/resolve/{id} ────────────────────────────────────────────────────
+@router.post("/resolve/{alert_id}")
+async def resolve_alert(
+    alert_id: str = Path(...),
+    user=Depends(get_current_user),
+    db=Depends(get_supabase),
+):
+    try:
+        db.table("alerts").update({"resolved": True, "is_read": True}).eq("id", alert_id).eq("user_id", user["id"]).execute()
+        return {"status": "resolved", "alert_id": alert_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-    # Build last 7 days array
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+def _build_trend(activity: list, now: datetime) -> list:
+    by_day: dict[str, dict] = defaultdict(lambda: {"normal": 0, "anomalous": 0})
+    for ev in activity:
+        ts = ev.get("created_at", "")
+        if not ts:
+            continue
+        day = ts[:10]
+        if ev.get("is_anomaly"):
+            by_day[day]["anomalous"] += 1
+        else:
+            by_day[day]["normal"] += 1
+
     result = []
     for i in range(6, -1, -1):
-        day = datetime.now(timezone.utc) - timedelta(days=i)
-        label = day.strftime("%b %d")
-        key = day.strftime("%Y-%m-%d")
-        d = days.get(key, {"normal": 0, "anomalous": 0})
-        result.append({
-            "label":     label,
-            "normal":    d["normal"],
-            "anomalous": d["anomalous"],
-        })
+        d = now - timedelta(days=i)
+        key = d.strftime("%Y-%m-%d")
+        dd = by_day.get(key, {"normal": 0, "anomalous": 0})
+        result.append({"label": d.strftime("%b %d"), **dd})
     return result
 
 
-def _format_time(ts_str: str | None) -> str:
-    if not ts_str:
-        return "Unknown"
+def _fmt_time(ts: str | None) -> str:
+    if not ts:
+        return "—"
     try:
-        dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
         return dt.strftime("%b %d, %Y %I:%M %p")
     except Exception:
-        return ts_str[:16] if ts_str else "Unknown"
-
-
-def _random_ip() -> str:
-    """Generate a plausible-looking external IP for display purposes."""
-    return f"{random.randint(100,220)}.{random.randint(0,255)}.{random.randint(0,255)}.{random.randint(1,254)}"
+        return ts[:16]

@@ -53,3 +53,11 @@ def get_supabase() -> Client:
             return result.data
     """
     return supabase
+
+
+def get_supabase_direct() -> Client:
+    """
+    Direct (non-DI) accessor for use in background threads / middleware
+    where FastAPI's Depends() isn't available.
+    """
+    return supabase
