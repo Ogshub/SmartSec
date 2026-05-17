@@ -53,6 +53,26 @@ app.add_middleware(
 # ── IDS Request Logger ────────────────────────────────────────────────────────
 app.add_middleware(RequestLoggerMiddleware)
 
+# ── CORS on error responses ───────────────────────────────────────────────────
+# FastAPI's CORSMiddleware doesn't always add headers to error responses.
+# This ensures the browser can read the real error instead of a fake CORS block.
+from fastapi import Request as _Request
+from fastapi.responses import JSONResponse as _JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: _Request, exc: StarletteHTTPException):
+    origin = request.headers.get("origin", "")
+    headers = {"Access-Control-Allow-Credentials": "true"}
+    if origin in ALLOWED_ORIGINS:
+        headers["Access-Control-Allow-Origin"] = origin
+    return _JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers=headers,
+    )
+
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth_router)
 app.include_router(ids_router)
