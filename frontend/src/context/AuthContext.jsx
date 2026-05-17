@@ -98,7 +98,7 @@ export function AuthProvider({ children }) {
         access_token: supabaseAccessToken,
         email: supabaseUser.email,
         full_name: supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name || '',
-        avatar_url: supabaseUser.user_metadata?.avatar_url || supabaseUser.user_metadata?.picture || '',
+        avatar_url: supabaseUser.user_metadata?.avatar_url || supabaseUser.user_metadata?.picture || null,
         provider: supabaseUser.app_metadata?.provider || 'oauth',
       });
       localStorage.setItem('smartsec_token', data.access_token);

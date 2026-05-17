@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import AvatarCropModal from '../components/AvatarCropModal';
+import UserAvatar from '../components/UserAvatar';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { ChevronRight, Camera, X, Check, ExternalLink } from 'lucide-react';
 
@@ -97,7 +98,6 @@ export default function ProfilePage() {
   const level = user?.risk_level ?? 'Medium';
   const lvlColor = { Low:'#10b981', Medium:'#f59e0b', High:'#ef4444' }[level]||'#f59e0b';
   const avatarColor = user?.avatar_color || '#6366f1';
-  const avatarUrl   = user?.avatar_url || null;
   const initials = (user?.username||'U').slice(0,2).toUpperCase();
 
   return (
@@ -126,12 +126,7 @@ export default function ProfilePage() {
         <div style={card()}>
           <div style={{ display:'flex', alignItems:'center', gap:'1rem', marginBottom:'1.1rem' }}>
             <div style={{ position:'relative', flexShrink:0 }}>
-              <div style={{ width:72, height:72, borderRadius:'50%', background:`linear-gradient(135deg, ${avatarColor}, ${avatarColor}aa)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.5rem', fontWeight:800, color:'#fff', border:`3px solid ${avatarColor}55`, overflow:'hidden' }}>
-                {avatarUrl
-                  ? <img src={avatarUrl} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
-                  : initials
-                }
-              </div>
+              <UserAvatar user={user} size={72} fontSize="1.5rem" />
               <button onClick={()=>setAvatarOpen(true)} style={{ position:'absolute', bottom:0, right:0, width:22, height:22, borderRadius:'50%', background:'#1e3a5f', border:`2px solid ${C.card}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
                 <Camera size={11} color="#94a3b8"/>
               </button>

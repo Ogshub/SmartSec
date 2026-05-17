@@ -4,6 +4,7 @@ import {
   LayoutDashboard, Activity, Bell, Globe, BarChart3,
   Settings, User, LogOut
 } from 'lucide-react';
+import UserAvatar from './UserAvatar';
 
 /* ── Nav structure matching the reference image exactly ───────── */
 const mainNav = [
@@ -84,11 +85,8 @@ export default function Sidebar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const initials = user?.username?.slice(0, 2).toUpperCase() || 'U';
   const score    = Math.round(user?.risk_score ?? 0);
   const level    = user?.risk_level ?? 'Low';
-  const avatarUrl = user?.avatar_url || null;
-  const avatarColor = user?.avatar_color || '#6366f1';
 
   const navItemStyle = (isActive) => ({
     display: 'flex', alignItems: 'center', gap: '.7rem',
@@ -149,18 +147,7 @@ export default function Sidebar() {
         <NavLink to="/profile" style={() => navItemStyle(false)}>
           {() => (
             <>
-              <div style={{
-                width: 20, height: 20, borderRadius: '50%',
-                background: avatarUrl ? 'transparent' : `linear-gradient(135deg,${avatarColor},#8b5cf6)`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '.6rem', fontWeight: 800, color: '#fff', flexShrink: 0,
-                overflow: 'hidden', border: avatarUrl ? '1px solid rgba(255,255,255,.15)' : 'none',
-              }}>
-                {avatarUrl
-                  ? <img src={avatarUrl} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
-                  : initials
-                }
-              </div>
+              <UserAvatar user={user} size={20} fontSize=".6rem" />
               <span style={{ color: '#64748b' }}>Profile</span>
             </>
           )}

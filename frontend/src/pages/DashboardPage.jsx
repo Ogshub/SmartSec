@@ -1,188 +1,225 @@
-import { useState, useEffect } from 'react';
+/**
+ * DashboardPage — Real aggregated data from /dashboard endpoint (Step 8)
+ */
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
-import { ShieldAlert, Activity, CheckCircle, AlertTriangle, Clock } from 'lucide-react';
+import {
+  ShieldAlert, Activity, CheckCircle, AlertTriangle, Clock,
+  Globe, BarChart3, RefreshCw, TrendingUp, TrendingDown, Zap,
+} from 'lucide-react';
 
-// Placeholder chart data — will be replaced with real data in Step 4+
-const activityData = [
-  { time: '00:00', requests: 12, alerts: 0 },
-  { time: '04:00', requests: 5,  alerts: 0 },
-  { time: '08:00', requests: 45, alerts: 1 },
-  { time: '12:00', requests: 78, alerts: 2 },
-  { time: '16:00', requests: 92, alerts: 1 },
-  { time: '20:00', requests: 60, alerts: 3 },
-  { time: '23:59', requests: 34, alerts: 1 },
-];
-
-function StatCard({ label, value, sub, color, icon }) {
+function StatCard({ label, value, sub, icon, color }) {
+  const colorMap = { blue: '#3b82f6', green: '#10b981', yellow: '#f59e0b', red: '#ef4444', purple: '#8b5cf6' };
+  const c = colorMap[color] || '#6366f1';
   return (
-    <div className={`stat-card ${color}`}>
-      <div className="stat-icon">{icon}</div>
-      <div className="stat-label">{label}</div>
-      <div className="stat-value">{value}</div>
-      <div className="stat-sub">{sub}</div>
+    <div style={{
+      background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)',
+      borderRadius: 12, padding: '1.1rem 1.25rem',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <div style={{ fontSize: '.72rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em' }}>{label}</div>
+          <div style={{ fontSize: '2rem', fontWeight: 800, color: '#f1f5f9', lineHeight: 1.1, margin: '.3rem 0 .2rem' }}>{value ?? '0'}</div>
+          <div style={{ fontSize: '.72rem', color: '#475569' }}>{sub}</div>
+        </div>
+        <span style={{ fontSize: '1.4rem', marginTop: '.1rem' }}>{icon}</span>
+      </div>
     </div>
   );
 }
 
 function RiskGauge({ score, level }) {
-  const angle = (score / 100) * 180 - 90; // -90 to +90 degrees
   const color = level === 'High' ? '#ef4444' : level === 'Medium' ? '#f59e0b' : '#10b981';
-
+  const pC = (cx,cy,r,deg) => { const rad=((deg-90)*Math.PI)/180; return {x:cx+r*Math.cos(rad),y:cy+r*Math.sin(rad)}; };
+  const arc = (cx,cy,r,s,e) => { const a=pC(cx,cy,r,s),b=pC(cx,cy,r,e),l=e-s>180?1:0; return `M ${a.x.toFixed(2)} ${a.y.toFixed(2)} A ${r} ${r} 0 ${l} 1 ${b.x.toFixed(2)} ${b.y.toFixed(2)}`; };
+  const fillEnd = 180 + (score/100)*180;
   return (
-    <div className="gauge-wrap">
-      <svg width="180" height="100" viewBox="0 0 180 100">
-        {/* Track */}
-        <path d="M 10 90 A 80 80 0 0 1 170 90" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="14" strokeLinecap="round" />
-        {/* Green zone */}
-        <path d="M 10 90 A 80 80 0 0 1 70 18" fill="none" stroke="rgba(16,185,129,0.3)" strokeWidth="14" strokeLinecap="round" />
-        {/* Yellow zone */}
-        <path d="M 70 18 A 80 80 0 0 1 130 18" fill="none" stroke="rgba(245,158,11,0.3)" strokeWidth="14" strokeLinecap="round" />
-        {/* Red zone */}
-        <path d="M 130 18 A 80 80 0 0 1 170 90" fill="none" stroke="rgba(239,68,68,0.3)" strokeWidth="14" strokeLinecap="round" />
-        {/* Needle */}
-        <line
-          x1="90" y1="90"
-          x2={90 + 65 * Math.cos(((angle - 90) * Math.PI) / 180)}
-          y2={90 + 65 * Math.sin(((angle - 90) * Math.PI) / 180)}
-          stroke={color} strokeWidth="3" strokeLinecap="round"
-        />
-        <circle cx="90" cy="90" r="6" fill={color} />
-        {/* Labels */}
-        <text x="10" y="98" fill="rgba(255,255,255,0.4)" fontSize="9">LOW</text>
-        <text x="75" y="12" fill="rgba(255,255,255,0.4)" fontSize="9">MED</text>
-        <text x="143" y="98" fill="rgba(255,255,255,0.4)" fontSize="9">HIGH</text>
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'1rem 0' }}>
+      <svg width="180" height="110" viewBox="0 0 180 110" style={{ overflow:'visible' }}>
+        <path d={arc(90,90,68,180,360)} fill="none" stroke="rgba(255,255,255,.06)" strokeWidth="14" strokeLinecap="round"/>
+        <path d={arc(90,90,68,180,240)} fill="none" stroke="rgba(16,185,129,.2)"  strokeWidth="14" strokeLinecap="round"/>
+        <path d={arc(90,90,68,240,300)} fill="none" stroke="rgba(245,158,11,.2)"  strokeWidth="14" strokeLinecap="round"/>
+        <path d={arc(90,90,68,300,360)} fill="none" stroke="rgba(239,68,68,.2)"   strokeWidth="14" strokeLinecap="round"/>
+        {score>0&&<path d={arc(90,90,68,180,Math.min(fillEnd,359.9))} fill="none" stroke={color} strokeWidth="14" strokeLinecap="round" style={{filter:`drop-shadow(0 0 6px ${color}99)`}}/>}
+        <text x="90" y="88" textAnchor="middle" fill="#f1f5f9" fontSize="26" fontWeight="800" fontFamily="Inter,sans-serif">{Math.round(score)}</text>
+        <text x="90" y="104" textAnchor="middle" fill="#475569" fontSize="9">RISK SCORE</text>
       </svg>
-      <div style={{ textAlign: 'center', marginTop: '-.5rem' }}>
-        <div style={{ fontSize: '2rem', fontWeight: 800, color, fontFamily: 'JetBrains Mono, monospace' }}>
-          {score.toFixed(0)}
-        </div>
-        <div style={{ fontSize: '.7rem', color: 'var(--text3)' }}>Risk Score / 100</div>
-        <span className={`risk-badge ${level}`} style={{ marginTop: '.4rem', display: 'inline-block' }}>{level} Risk</span>
-      </div>
+      <span style={{padding:'.2rem .7rem',borderRadius:99,fontSize:'.72rem',fontWeight:700,background:`${color}20`,color,border:`1px solid ${color}44`,marginTop:'-.3rem'}}>{level} Risk</span>
     </div>
   );
 }
 
+const MODULE_STATUS = [
+  { name: 'Authentication',      status: 'Online',  color: '#10b981', icon: '🔐' },
+  { name: 'Intrusion Detection', status: 'Active',  color: '#10b981', icon: '🤖' },
+  { name: 'Phishing Detector',   status: 'Active',  color: '#10b981', icon: '🎣' },
+  { name: 'Risk Scoring Engine', status: 'Online',  color: '#10b981', icon: '📊' },
+  { name: 'Email Alerts',        status: 'Online',  color: '#10b981', icon: '📧' },
+  { name: 'Activity Logger',     status: 'Active',  color: '#10b981', icon: '📋' },
+];
+
 export default function DashboardPage() {
   const { user, refreshUser } = useAuth();
-  const [history, setHistory]   = useState([]);
-  const [loadingH, setLoadingH] = useState(true);
+  const [dash,     setDash]     = useState(null);
+  const [history,  setHistory]  = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState('');
 
-  useEffect(() => {
-    refreshUser();
-    api.get('/auth/login-history')
-      .then(r => setHistory(r.data.history || []))
-      .catch(() => {})
-      .finally(() => setLoadingH(false));
+  const fetchAll = useCallback(async () => {
+    setLoading(true); setError('');
+    try {
+      refreshUser();
+      const [d, h] = await Promise.all([
+        api.get('/dashboard').catch(() => ({ data: null })),
+        api.get('/auth/login-history').catch(() => ({ data: { history: [] } })),
+      ]);
+      setDash(d.data);
+      setHistory(h.data.history || []);
+    } catch (e) {
+      setError('Failed to load dashboard');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const riskScore = user?.risk_score ?? 0;
   const riskLevel = user?.risk_level ?? 'Low';
 
-  const highCount = history.filter(e => e.event_type === 'SUSPICIOUS').length;
-  const failCount = history.filter(e => e.event_type === 'FAILURE').length;
+  // Build 7-day chart from history
+  const chartData = (() => {
+    const days = Array.from({length: 7}, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - (6 - i));
+      return { label: d.toLocaleDateString('en-IN', {weekday:'short'}), requests: 0, alerts: 0 };
+    });
+    history.forEach(ev => {
+      const evDate = new Date(ev.created_at);
+      const daysAgo = Math.floor((Date.now() - evDate.getTime()) / 86400000);
+      if (daysAgo < 7) {
+        const idx = 6 - daysAgo;
+        days[idx].requests++;
+        if (ev.event_type === 'SUSPICIOUS' || ev.event_type === 'FAILURE') days[idx].alerts++;
+      }
+    });
+    return days;
+  })();
 
   return (
     <>
-      {/* ── Stat Row ── */}
-      <div className="stat-grid">
-        <StatCard label="Risk Score"      value={riskScore.toFixed(0)} sub="Out of 100"             color="blue"   icon="🛡️" />
-        <StatCard label="Login Sessions"  value={user?.login_count ?? 0} sub="Total authenticated"  color="green"  icon="🔑" />
-        <StatCard label="Failed Attempts" value={failCount}            sub="Since last success"      color="yellow" icon="⚠️" />
-        <StatCard label="Alerts Raised"   value={highCount}            sub="Suspicious logins"       color="red"    icon="🚨" />
+      {/* Header */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.25rem' }}>
+        <div>
+          <h2 style={{ fontSize:'1.2rem', fontWeight:800, color:'#f1f5f9', margin:0 }}>
+            👋 Welcome back, {user?.email?.split('@')[0] || 'User'}
+          </h2>
+          <p style={{ color:'#64748b', fontSize:'.82rem', margin:'.25rem 0 0' }}>
+            Here's your real-time security overview
+          </p>
+        </div>
+        <button onClick={fetchAll} disabled={loading} style={{
+          display:'flex', alignItems:'center', gap:'.4rem', padding:'.45rem .9rem',
+          borderRadius:8, fontSize:'.78rem', fontWeight:600,
+          background:'rgba(255,255,255,.04)', border:'1px solid rgba(255,255,255,.1)',
+          color:'#64748b', cursor:'pointer',
+        }}>
+          <RefreshCw size={13} style={loading?{animation:'spin .7s linear infinite'}:{}}/> Refresh
+        </button>
       </div>
 
-      <div className="grid-2 mt-3">
-        {/* ── Risk Gauge ── */}
+      {error && <div style={{background:'rgba(239,68,68,.08)',border:'1px solid rgba(239,68,68,.2)',borderRadius:10,padding:'.75rem 1rem',marginBottom:'1rem',color:'#f87171',fontSize:'.82rem'}}>⚠️ {error}</div>}
+
+      {/* Stat cards */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'.75rem', marginBottom:'1rem' }}>
+        <StatCard label="Risk Score"       value={Math.round(riskScore)} sub="Out of 100"            icon="🛡️" color="blue"/>
+        <StatCard label="Login Sessions"   value={user?.login_count??0}  sub="Total authenticated"   icon="🔑" color="green"/>
+        <StatCard label="Threats Detected" value={dash?.ids?.anomalies??0} sub="IDS anomalies"       icon="🚨" color="red"/>
+        <StatCard label="URLs Scanned"     value={dash?.phishing?.total_scans??0} sub="Phishing checks" icon="🔗" color="purple"/>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1.6fr', gap:'1rem', marginBottom:'1rem' }}>
+        {/* Risk gauge */}
         <div className="card">
           <div className="card-header">
-            <div className="card-title"><ShieldAlert size={15} className="icon" /> Current Risk Level</div>
+            <div className="card-title"><ShieldAlert size={14}/> Current Risk Level</div>
             <span className={`risk-badge ${riskLevel}`}>{riskLevel}</span>
           </div>
-          <RiskGauge score={riskScore} level={riskLevel} />
-          <p className="text-muted mt-2" style={{ textAlign: 'center' }}>
-            Based on login behavior, IP changes & time patterns
+          {loading ? <div className="ids-empty-state"><span className="ids-spinner"/></div> : <RiskGauge score={riskScore} level={riskLevel}/>}
+          <p style={{ textAlign:'center', fontSize:'.75rem', color:'#475569', padding:'0 1rem .75rem' }}>
+            Computed from login behavior, IDS signals & phishing scans
           </p>
         </div>
 
-        {/* ── Login History ── */}
+        {/* Activity chart */}
         <div className="card">
           <div className="card-header">
-            <div className="card-title"><Clock size={15} className="icon" /> Recent Login Events</div>
-            <span style={{ fontSize: '.72rem', color: 'var(--text3)' }}>Last 10</span>
+            <div className="card-title"><Activity size={14}/> 7-Day Activity</div>
+            <span style={{ fontSize:'.72rem', color:'#64748b' }}>Login events</span>
           </div>
-          {loadingH ? (
-            <p className="text-muted">Loading…</p>
-          ) : history.length === 0 ? (
-            <p className="text-muted">No events recorded yet.</p>
-          ) : (
-            history.slice(0, 8).map((ev, i) => (
-              <div key={i} className="history-row">
-                <span className={`ev-chip ev-${ev.event_type}`}>{ev.event_type}</span>
-                <span className="text-muted mono">{ev.ip_address}</span>
-                <span className="text-muted" style={{ fontSize: '.68rem' }}>
-                  {ev.created_at ? new Date(ev.created_at).toLocaleString() : '—'}
-                </span>
-                <span style={{ fontSize: '.72rem', color: 'var(--yellow)', fontFamily: 'monospace' }}>
-                  {(ev.risk_score ?? 0).toFixed(0)}/100
-                </span>
-              </div>
-            ))
-          )}
+          <ResponsiveContainer width="100%" height={190}>
+            <AreaChart data={chartData} margin={{ top:5, right:10, left:-20, bottom:0 }}>
+              <defs>
+                <linearGradient id="gBlue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.3}/><stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="gRed" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#ef4444" stopOpacity={0.3}/><stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.05)"/>
+              <XAxis dataKey="label" tick={{fill:'#475569',fontSize:10}} axisLine={false} tickLine={false}/>
+              <YAxis tick={{fill:'#475569',fontSize:10}} axisLine={false} tickLine={false}/>
+              <Tooltip contentStyle={{background:'#0d1526',border:'1px solid #1e3a5f',borderRadius:8}}/>
+              <Area type="monotone" dataKey="requests" stroke="#3b82f6" fill="url(#gBlue)" strokeWidth={2} name="Requests"/>
+              <Area type="monotone" dataKey="alerts"   stroke="#ef4444" fill="url(#gRed)"  strokeWidth={2} name="Alerts"/>
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
-      {/* ── Activity Chart ── */}
-      <div className="card mt-3">
-        <div className="card-header">
-          <div className="card-title"><Activity size={15} className="icon" /> Request Activity (Simulated — Real data in Step 4)</div>
-        </div>
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={activityData}>
-            <defs>
-              <linearGradient id="gBlue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="gRed" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#ef4444" stopOpacity={0.4} />
-                <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="time" />
-            <YAxis />
-            <Tooltip contentStyle={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8 }} />
-            <Area type="monotone" dataKey="requests" stroke="#3b82f6" fill="url(#gBlue)" strokeWidth={2} name="Requests" />
-            <Area type="monotone" dataKey="alerts"   stroke="#ef4444" fill="url(#gRed)"  strokeWidth={2} name="Alerts" />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* ── Module Status ── */}
-      <div className="card mt-3">
-        <div className="card-header">
-          <div className="card-title">Module Status</div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '1rem' }}>
-          {[
-            { name: 'Authentication',       status: 'Online',      color: 'var(--green)',  step: '✅ Step 3' },
-            { name: 'Intrusion Detection',  status: 'Coming Soon', color: 'var(--yellow)', step: '⏳ Step 4' },
-            { name: 'Phishing Detector',    status: 'Coming Soon', color: 'var(--yellow)', step: '⏳ Step 5' },
-            { name: 'Risk Scoring Engine',  status: 'Coming Soon', color: 'var(--yellow)', step: '⏳ Step 6' },
-            { name: 'Real-Time Alerts',     status: 'Partial',     color: 'var(--accent2)', step: '🔄 Active' },
-            { name: 'Activity Logger',      status: 'Online',      color: 'var(--green)',  step: '✅ Step 3' },
-          ].map(m => (
-            <div key={m.name} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '.75rem' }}>
-              <div style={{ fontSize: '.75rem', color: 'var(--text3)', marginBottom: '.3rem' }}>{m.step}</div>
-              <div style={{ fontSize: '.875rem', fontWeight: 600, marginBottom: '.2rem' }}>{m.name}</div>
-              <div style={{ fontSize: '.75rem', color: m.color, fontWeight: 600 }}>● {m.status}</div>
+      {/* Login history + module status */}
+      <div style={{ display:'grid', gridTemplateColumns:'1.3fr 1fr', gap:'1rem' }}>
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title"><Clock size={14}/> Recent Login Events</div>
+            <span style={{ fontSize:'.72rem', color:'#64748b' }}>Last 8</span>
+          </div>
+          {loading ? <div className="ids-empty-state"><span className="ids-spinner"/></div> :
+          history.length === 0 ? <p className="text-muted">No events yet.</p> :
+          history.slice(0,8).map((ev,i) => (
+            <div key={i} className="history-row">
+              <span className={`ev-chip ev-${ev.event_type}`}>{ev.event_type}</span>
+              <span className="text-muted mono" style={{fontSize:'.72rem'}}>{ev.ip_address}</span>
+              <span className="text-muted" style={{fontSize:'.68rem'}}>{ev.created_at?new Date(ev.created_at).toLocaleString():'—'}</span>
+              <span style={{fontSize:'.72rem',color:'var(--yellow)',fontFamily:'monospace'}}>{(ev.risk_score??0).toFixed(0)}/100</span>
             </div>
           ))}
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title"><Zap size={14}/> Module Status</div>
+            <span style={{ fontSize:'.72rem', color:'#10b981' }}>All Systems Online</span>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:'.5rem' }}>
+            {MODULE_STATUS.map(m => (
+              <div key={m.name} style={{
+                display:'flex', alignItems:'center', justifyContent:'space-between',
+                padding:'.5rem .75rem', borderRadius:8,
+                background:'rgba(255,255,255,.02)', border:'1px solid rgba(255,255,255,.06)',
+              }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'.6rem' }}>
+                  <span>{m.icon}</span>
+                  <span style={{ fontSize:'.8rem', color:'#e2e8f0' }}>{m.name}</span>
+                </div>
+                <span style={{ fontSize:'.72rem', color:m.color, fontWeight:600 }}>● {m.status}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </>

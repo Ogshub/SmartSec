@@ -15,6 +15,7 @@ from pydantic import BaseModel, field_validator
 from database import get_supabase
 from services.phishing_service import analyse_url
 from services.auth_service import decode_access_token
+from services.risk_service import record_event
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 router = APIRouter(prefix="/phishing", tags=["Phishing"])
@@ -79,17 +80,21 @@ async def scan_url(
     try:
         db.table("url_scans").insert(row).execute()
     except Exception:
-        pass  # Don't fail the scan if DB insert fails
+        pass
 
-    # If phishing detected → create an alert
+    # Update risk score + create alert based on verdict
     if result.verdict == "Phishing":
+        try:
+            record_event(db, user, "phishing_detected",
+                         description=f"Phishing URL detected: {body.url[:100]} (risk score: {result.risk_score})")
+        except Exception:
+            pass
         try:
             db.table("alerts").insert({
                 "user_id":    user["id"],
                 "alert_type": "PHISHING_DETECTED",
                 "severity":   "High",
                 "message":    f"Phishing URL detected: {body.url[:80]} (score {result.risk_score})",
-                "source_ip":  None,
                 "is_read":    False,
                 "resolved":   False,
             }).execute()
@@ -97,12 +102,16 @@ async def scan_url(
             pass
     elif result.verdict == "Suspicious":
         try:
+            record_event(db, user, "phishing_suspicious",
+                         description=f"Suspicious URL scanned: {body.url[:100]} (risk score: {result.risk_score})")
+        except Exception:
+            pass
+        try:
             db.table("alerts").insert({
                 "user_id":    user["id"],
                 "alert_type": "SUSPICIOUS_URL",
                 "severity":   "Medium",
-                "message":    f"Suspicious URL scanned: {body.url[:80]} (score {result.risk_score})",
-                "source_ip":  None,
+                "message":    f"Suspicious URL: {body.url[:80]} (score {result.risk_score})",
                 "is_read":    False,
                 "resolved":   False,
             }).execute()
@@ -110,13 +119,16 @@ async def scan_url(
             pass
 
     return {
-        "url":          result.url,
-        "verdict":      result.verdict,
-        "risk_score":   result.risk_score,
-        "confidence":   result.confidence,
-        "flags":        result.flags,
-        "features":     result.features,
-        "virustotal":   result.virustotal,
+        "url":           result.url,
+        "verdict":       result.verdict,
+        "risk_score":    result.risk_score,
+        "confidence":    result.confidence,
+        "flags":         result.flags,
+        "features":      result.features,
+        "virustotal":    result.virustotal,
+        "safe_browsing": result.safe_browsing,
+        "abuseipdb":     result.abuseipdb,
+        "apis_used":     result.features.get("apis_checked", 0),
     }
 
 

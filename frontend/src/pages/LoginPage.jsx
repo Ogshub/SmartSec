@@ -4,7 +4,7 @@
  * Right: Login / Register form + OAuth (Google, GitHub)
  */
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { Eye, EyeOff, ShieldCheck, Zap, Lock, Activity } from 'lucide-react';
@@ -144,6 +144,21 @@ export default function LoginPage() {
   const [oauthLoading, setOauthLoading] = useState('');
   const { login, register, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const errDesc = params.get('error_description');
+    const err = params.get('error');
+    if (errDesc) {
+      setError(errDesc.replace(/\+/g, ' '));
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (err) {
+      setError(err.replace(/\+/g, ' '));
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [location.search]);
 
   const [form, setForm] = useState({ username:'', email:'', password:'' });
   const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));

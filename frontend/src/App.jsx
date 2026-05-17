@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 import DashboardLayout from './components/DashboardLayout';
 import LoginPage      from './pages/LoginPage';
 import DashboardPage  from './pages/DashboardPage';
@@ -11,9 +12,6 @@ import SettingsPage   from './pages/SettingsPage';
 import ProfilePage    from './pages/ProfilePage';
 import AuthCallback   from './pages/AuthCallback';
 
-// Protected route wrapper — redirects to /login if not authenticated
-// Checks BOTH React context state AND localStorage so a timing race
-// after OAuth redirect can never falsely bounce the user to /login.
 function PrivateRoute({ children }) {
   const { token } = useAuth();
   const isAuthenticated = token || localStorage.getItem('smartsec_token');
@@ -37,16 +35,25 @@ function AppRoutes() {
         <Route path="/profile"   element={<ProfilePage />} />
       </Route>
 
-      <Route path="*" element={<Navigate to={token ? '/dashboard' : '/login'} replace />} />
+      <Route path="*" element={<CatchAllRedirect />} />
     </Routes>
   );
+}
+
+function CatchAllRedirect() {
+  const { token } = useAuth();
+  const search = window.location.search;
+  if (token) return <Navigate to="/dashboard" replace />;
+  return <Navigate to={`/login${search}`} replace />;
 }
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <NotificationProvider>
+          <AppRoutes />
+        </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>
   );

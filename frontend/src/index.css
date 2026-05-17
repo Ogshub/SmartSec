@@ -478,4 +478,8 @@ input, textarea { font-family: inherit; }
   animation: ids-spin .7s linear infinite; display: inline-block;
 }
 @keyframes ids-spin { to { transform: rotate(360deg); } }
+@keyframes spin      { to { transform: rotate(360deg); } }
+
+/* ANOMALY chip */
+.ev-ANOMALY { background: rgba(139,92,246,.12); color: #a78bfa; }
 
