@@ -483,3 +483,59 @@ input, textarea { font-family: inherit; }
 /* ANOMALY chip */
 .ev-ANOMALY { background: rgba(139,92,246,.12); color: #a78bfa; }
 
+/* ══════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE — SmartSec
+   ══════════════════════════════════════════════════════════════ */
+
+/* Login box — full width on small screens */
+@media (max-width: 480px) {
+  .login-box {
+    width: calc(100vw - 2rem) !important;
+    padding: 1.75rem 1.25rem !important;
+    border-radius: 14px !important;
+  }
+}
+
+/* IDS / Dashboard stat grids */
+@media (max-width: 600px) {
+  .ids-stat-grid { grid-template-columns: 1fr 1fr !important; }
+  .stat-grid     { grid-template-columns: 1fr 1fr !important; }
+}
+@media (max-width: 400px) {
+  .ids-stat-grid { grid-template-columns: 1fr !important; }
+  .stat-grid     { grid-template-columns: 1fr !important; }
+}
+
+/* IDS chart rows → stack on mobile */
+@media (max-width: 700px) {
+  .ids-chart-row  { grid-template-columns: 1fr !important; }
+  .ids-bottom-row { grid-template-columns: 1fr !important; }
+}
+
+/* Tables — horizontal scroll on mobile */
+@media (max-width: 700px) {
+  .ids-alert-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .ids-alert-table { min-width: 560px; }
+}
+
+/* Dashboard / shared two-col grids */
+@media (max-width: 800px) {
+  .grid-2 { grid-template-columns: 1fr !important; }
+  .grid-3 { grid-template-columns: 1fr !important; }
+}
+
+/* Topbar on mobile */
+@media (max-width: 768px) {
+  .topbar { padding: .75rem 1rem !important; }
+}
+
+/* Page padding on mobile */
+@media (max-width: 600px) {
+  .page { padding: 1rem !important; }
+}
+
+/* Hide low-priority columns in IDS table on mobile */
+@media (max-width: 600px) {
+  .ids-col-hide { display: none !important; }
+}
+

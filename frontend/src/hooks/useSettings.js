@@ -1,96 +1,103 @@
 /**
  * useSettings — Global settings hook
- * ─────────────────────────────────────
- * Source of truth:   Supabase (user_settings JSONB column)
- * Fallback / cache:  localStorage (instant reads, no flicker)
- *
- * On mount:   Loads from user.user_settings (already in AuthContext)
- * On change:  Saves to Supabase via saveSettings() + updates localStorage
+ * Key names EXACTLY match what SettingsPage.jsx reads/writes.
+ * Source of truth: Supabase (user_settings JSONB) + localStorage cache.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 
-const DEFAULTS = {
-  // Detection sensitivity
-  sensitivity: 'Medium',
+export const SETTING_DEFAULTS = {
+  // Detection
+  sensitivityLevel: 'Medium',
 
   // Phishing
-  urlScanning: true,
-  strictMode: false,
-  detailedAnalysis: true,
+  urlScanEnabled: true,
+  urlStrictMode: false,
+  urlDetailedAnalysis: true,
 
   // Alerts
   alertsEnabled: true,
-  loginAlerts: true,
-  idsAlerts: true,
-  phishingAlerts: true,
+  alertLogin: true,
+  alertIDS: true,
+  alertPhishing: true,
+  emailNotifications: false,
 
   // Activity
   activityTracking: true,
-  dataRetention: '7',
+  dataRetentionDays: 30,
 
   // Appearance
   theme: 'dark',
   accentColor: '#6366f1',
-  layout: 'sidebar',
+  dashLayout: 'default',
 
-  // 2FA (simulated)
-  twoFAEnabled: false,
+  // Security
+  twoFA: false,
 };
 
-const LS_KEY = 'smartsec_settings';
+const LS_KEY = 'smartsec_settings_v2';
 
 function merge(saved) {
-  return { ...DEFAULTS, ...(saved || {}) };
+  return { ...SETTING_DEFAULTS, ...(saved || {}) };
 }
 
 export function useSettings() {
   const { user, saveSettings } = useAuth();
 
-  // Initialise: prefer Supabase data already hydrated into user object
-  const [settings, setSettingsState] = useState(() => {
-    const fromUser = user?.user_settings && Object.keys(user.user_settings).length > 0
-      ? user.user_settings
-      : null;
-    const fromLS = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
-    return merge(fromUser || fromLS);
+  const [settings, setSettings] = useState(() => {
+    const fromUser =
+      user?.user_settings && Object.keys(user.user_settings).length > 0
+        ? user.user_settings
+        : null;
+    try {
+      const fromLS = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+      return merge(fromUser || fromLS);
+    } catch {
+      return merge(fromUser);
+    }
   });
 
-  // When user object loads/refreshes, sync settings from Supabase
+  // Re-sync from Supabase when user object loads
   useEffect(() => {
     if (user?.user_settings && Object.keys(user.user_settings).length > 0) {
       const merged = merge(user.user_settings);
-      setSettingsState(merged);
+      setSettings(merged);
       localStorage.setItem(LS_KEY, JSON.stringify(merged));
     }
-  }, [user?.id]);  // only re-sync when user id changes (login/switch)
+  }, [user?.id]);
 
-  // Debounced save to Supabase
-  const updateSetting = useCallback((key, value) => {
-    setSettingsState(prev => {
-      const next = { ...prev, [key]: value };
-      localStorage.setItem(LS_KEY, JSON.stringify(next));
-      // Fire-and-forget save — no need to await
-      if (saveSettings) saveSettings(next);
-      return next;
-    });
+  // update(key, value) — called by SettingsPage toggles
+  const update = useCallback(
+    (key, value) => {
+      setSettings(prev => {
+        const next = { ...prev, [key]: value };
+        localStorage.setItem(LS_KEY, JSON.stringify(next));
+        if (saveSettings) saveSettings(next);
+        return next;
+      });
+    },
+    [saveSettings]
+  );
+
+  // Bulk update
+  const updateAll = useCallback(
+    overrides => {
+      setSettings(prev => {
+        const next = { ...prev, ...overrides };
+        localStorage.setItem(LS_KEY, JSON.stringify(next));
+        if (saveSettings) saveSettings(next);
+        return next;
+      });
+    },
+    [saveSettings]
+  );
+
+  // Reset to defaults
+  const reset = useCallback(() => {
+    localStorage.setItem(LS_KEY, JSON.stringify(SETTING_DEFAULTS));
+    if (saveSettings) saveSettings(SETTING_DEFAULTS);
+    setSettings(SETTING_DEFAULTS);
   }, [saveSettings]);
 
-  // Bulk update (e.g., reset defaults)
-  const updateSettings = useCallback((overrides) => {
-    setSettingsState(prev => {
-      const next = { ...prev, ...overrides };
-      localStorage.setItem(LS_KEY, JSON.stringify(next));
-      if (saveSettings) saveSettings(next);
-      return next;
-    });
-  }, [saveSettings]);
-
-  const resetDefaults = useCallback(() => {
-    localStorage.setItem(LS_KEY, JSON.stringify(DEFAULTS));
-    if (saveSettings) saveSettings(DEFAULTS);
-    setSettingsState(DEFAULTS);
-  }, [saveSettings]);
-
-  return { settings, updateSetting, updateSettings, resetDefaults };
+  return { settings, update, updateAll, reset };
 }

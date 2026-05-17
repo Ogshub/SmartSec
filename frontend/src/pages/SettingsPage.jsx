@@ -195,8 +195,8 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      {/* ── 3-column grid ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+      {/* ── Responsive grid ── */}
+      <div className="settings-grid">
 
         {/* ═══ ACCOUNT & SECURITY ═══════════════════════════ */}
         <Card icon="👤" title="Account & Security">
@@ -334,7 +334,7 @@ export default function SettingsPage() {
       </div>
 
       {/* ═══ ABOUT + RESET ROW ═════════════════════════════════ */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', alignItems: 'center', marginTop: '1rem' }}>
+      <div className="settings-about-row">
         <Card icon="ℹ️" title="About SmartSec" style={{ marginBottom: 0 }}>
           <div style={{ fontSize: '.82rem', color: '#94a3b8', lineHeight: 1.8 }}>
             <div style={{ color: '#cbd5e1', fontWeight: 600 }}>SmartSec AI Cyber Defense Platform</div>
@@ -397,6 +397,34 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* Responsive CSS for settings page */}
+      <style>{`
+        .settings-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 1rem;
+        }
+        .settings-about-row {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 1rem;
+          align-items: center;
+          margin-top: 1rem;
+        }
+        @media (max-width: 1100px) {
+          .settings-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        @media (max-width: 700px) {
+          .settings-grid { grid-template-columns: 1fr !important; }
+          .settings-about-row { grid-template-columns: 1fr !important; }
+          .settings-about-row > div:last-child {
+            align-items: flex-start !important;
+            flex-direction: row !important;
+            flex-wrap: wrap;
+          }
+        }
+      `}</style>
     </>
   );
 }
