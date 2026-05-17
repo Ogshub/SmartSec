@@ -30,13 +30,16 @@ app = FastAPI(
 )
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
+_env_origins = [o.strip() for o in os.getenv("FRONTEND_URL", "").split(",") if o.strip()]
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:5173",
     "http://localhost:5174",
     "http://localhost:5175",
-    # Production origins (add your Vercel URL here)
-    os.getenv("FRONTEND_URL", "https://smartsec-platform.vercel.app"),
+    # Always include production URLs
+    "https://smartsec.vercel.app",
+    "https://smart-sec-eight.vercel.app",
+    *_env_origins,
 ]
 
 app.add_middleware(
