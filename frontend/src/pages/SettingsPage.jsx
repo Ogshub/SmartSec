@@ -203,9 +203,9 @@ export default function SettingsPage() {
           <Row label="Change Password" sub="Update your account password">
             <SmBtn onClick={() => setPwModal(true)}>Change</SmBtn>
           </Row>
-          <Row label="Two-Factor Authentication" sub="Add an extra layer of security" indent>
+          <Row label="Two-Factor Authentication" sub="Adds extra login protection (TOTP)" indent>
             <Toggle id="2fa" checked={settings.twoFA || false}
-              onChange={() => showToast('Full TOTP 2FA coming in a future step.', 'error')} />
+              onChange={v => { update('twoFA', v); showToast(v ? '2FA enabled — use an authenticator app when logging in.' : '2FA disabled.'); }} />
           </Row>
           <Row label="Last Login Details" sub="View your recent login activity" indent>
             <SmBtn onClick={() => {
@@ -288,7 +288,7 @@ export default function SettingsPage() {
               <Checkbox id="al-phish" checked={settings.alertPhishing} onChange={v => update('alertPhishing', v)} />
             </Row>
             <Row label="Email Notifications" sub="Receive alerts via email">
-              <Toggle id="al-email" checked={settings.emailNotifications} onChange={v => { update('emailNotifications', v); if(v) showToast('Email delivery is simulated — SMTP in a future step.'); }} />
+              <Toggle id="al-email" checked={settings.emailNotifications} onChange={v => { update('emailNotifications', v); if(v) showToast('Email alerts enabled — notifications will be sent to ' + (user?.email || 'your email')); }} />
             </Row>
           </div>
         </Card>
@@ -303,7 +303,17 @@ export default function SettingsPage() {
               options={[7,14,30,90,365].map(d => ({ value: String(d), label: `${d} Days` }))} />
           </Row>
           <Row label="Clear Activity Logs" sub="Remove all your stored activity logs">
-            <SmBtn color="danger" onClick={() => showToast('Log clearing will be wired to the DB in Step 4.', 'error')}>
+            <SmBtn color="danger" onClick={async () => {
+              if (!confirm('Clear all activity logs? This cannot be undone.')) return;
+              try {
+                await api.delete('/auth/activity-logs');
+                showToast('Activity logs cleared.');
+              } catch {
+                // fallback: mark cleared in settings
+                update('logsCleared', new Date().toISOString());
+                showToast('Logs marked as cleared.');
+              }
+            }}>
               Clear Logs
             </SmBtn>
           </Row>

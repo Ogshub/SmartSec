@@ -534,7 +534,7 @@ input, textarea { font-family: inherit; }
   .page { padding: 1rem !important; }
 }
 
-
+}
 
 /* Hide low-priority columns in IDS table on mobile */
 @media (max-width: 600px) {

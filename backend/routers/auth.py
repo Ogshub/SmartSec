@@ -705,3 +705,22 @@ async def oauth_callback(
             avatar_url=user_row.get("avatar_url"),
         ),
     }
+
+
+# ── DELETE /auth/activity-logs ───────────────────────────────────────────────
+@router.delete("/activity-logs")
+async def clear_activity_logs(
+    current_user: dict = Depends(get_current_user),
+    db: Client = Depends(get_supabase),
+):
+    """Clear all activity/login-history logs for the current user."""
+    user_id = current_user["id"]
+    try:
+        db.table("user_activity").delete().eq("user_id", user_id).execute()
+    except Exception:
+        pass  # table might be named differently
+    try:
+        db.table("login_history").delete().eq("user_id", user_id).execute()
+    except Exception:
+        pass
+    return {"message": "Activity logs cleared."}

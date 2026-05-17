@@ -134,14 +134,14 @@ export default function DashboardPage() {
       {error && <div style={{background:'rgba(239,68,68,.08)',border:'1px solid rgba(239,68,68,.2)',borderRadius:10,padding:'.75rem 1rem',marginBottom:'1rem',color:'#f87171',fontSize:'.82rem'}}>⚠️ {error}</div>}
 
       {/* Stat cards */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'.75rem', marginBottom:'1rem' }}>
+      <div className="dash-stat-grid">
         <StatCard label="Risk Score"       value={Math.round(riskScore)} sub="Out of 100"            icon="🛡️" color="blue"/>
         <StatCard label="Login Sessions"   value={user?.login_count??0}  sub="Total authenticated"   icon="🔑" color="green"/>
         <StatCard label="Threats Detected" value={dash?.ids?.anomalies??0} sub="IDS anomalies"       icon="🚨" color="red"/>
         <StatCard label="URLs Scanned"     value={dash?.phishing?.total_scans??0} sub="Phishing checks" icon="🔗" color="purple"/>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1.6fr', gap:'1rem', marginBottom:'1rem' }}>
+      <div className="dash-mid-grid">
         {/* Risk gauge */}
         <div className="card">
           <div className="card-header">
@@ -182,7 +182,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Login history + module status */}
-      <div style={{ display:'grid', gridTemplateColumns:'1.3fr 1fr', gap:'1rem' }}>
+      <div className="dash-bot-grid">
         <div className="card">
           <div className="card-header">
             <div className="card-title"><Clock size={14}/> Recent Login Events</div>
