@@ -36,9 +36,11 @@ ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:5174",
     "http://localhost:5175",
-    # Always include production URLs
+    # Production URLs — add your Vercel/Render URLs here
     "https://smartsec.vercel.app",
     "https://smart-sec-eight.vercel.app",
+    "https://smartsec-ai.vercel.app",
+    "https://smartsec-frontend.vercel.app",
     *_env_origins,
 ]
 

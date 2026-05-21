@@ -8,11 +8,17 @@ services:
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
+      - key: SECRET_KEY
+        sync: false
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "30"
       - key: SUPABASE_URL
         sync: false
-      - key: SUPABASE_SERVICE_KEY
+      - key: SUPABASE_ANON_KEY
         sync: false
-      - key: SUPABASE_JWT_SECRET
+      - key: SUPABASE_SERVICE_KEY
         sync: false
       - key: VIRUSTOTAL_API_KEY
         sync: false
@@ -24,9 +30,9 @@ services:
         sync: false
       - key: RESEND_API_KEY
         sync: false
-      - key: RESEND_FROM_EMAIL
+      - key: ALERT_EMAIL_FROM
         value: alerts@smartsec.dev
-      - key: ALLOWED_ORIGINS
-        value: https://smartsec-ai.vercel.app
+      - key: FRONTEND_URL
+        sync: false
       - key: PYTHON_VERSION
         value: "3.11.0"
