@@ -1,0 +1,94 @@
+% SmartSec AI-Based Cyber Defense Platform
+% Report by Shubham Prajapati
+\documentclass[12pt,a4paper,final,oneside]{report}
+\usepackage{geometry}
+\geometry{a4paper,total={170mm,257mm}}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphics}
+\usepackage{array}
+\usepackage{epstopdf}
+\usepackage{setspace}
+\usepackage[numbers]{natbib}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage{lipsum}
+\usepackage{setspace}
+\renewcommand{\baselinestretch}{1.5}
+\usepackage[pdftex]{graphicx}
+\usepackage{sidecap}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{caption}
+\setlength{\headheight}{14.5pt}
+\addtolength{\topmargin}{-2.5pt}
+
+\begin{document}
+
+\input{cover.tex}
+\input{cert.tex}
+\input{declaration.tex}
+\input{ack.tex}
+\input{abst.tex}
+ \addcontentsline{toc}{chapter}{Abstract}
+\tableofcontents
+  \listoftables
+   \addcontentsline{toc}{chapter}{List of Tables}
+\listoffigures
+  \addcontentsline{toc}{chapter}{List of Figures}
+\input{nomenclature.tex}
+\addcontentsline{toc}{chapter}{Nomenclature}
+\newpage
+\pagestyle{plain}
+\pagenumbering{arabic}
+\onehalfspacing
+\pagestyle{fancy}
+\renewcommand{\footrulewidth}{0.4pt}
+\fancyhf{}
+\rhead{SmartSec}
+\lfoot{BVIMIT}
+\rfoot{Page \thepage}
+\clearpage\input{chap1.tex}
+\clearpage\input{chap2.tex}
+\clearpage\input{chap3.tex}
+\clearpage\input{chap4.tex}
+\clearpage\input{chap5.tex}
+\clearpage\input{chap6.tex}
+\clearpage\input{chap7.tex}
+\clearpage\input{chap8.tex}
+\clearpage
+
+\clearpage
+\chapter*{References}
+\addcontentsline{toc}{chapter}{References}
+\thispagestyle{empty}
+
+\begin{enumerate}
+
+\item FastAPI Documentation. Sebastián Ramírez, 2024. Available at: https://fastapi.tiangolo.com
+
+\item Supabase Documentation. Supabase Inc., 2024. Available at: https://supabase.com/docs
+
+\item React.js Documentation. Meta Platforms, Inc., 2024. Available at: https://react.dev
+
+\item scikit-learn: Machine Learning in Python. Pedregosa et al., Journal of Machine Learning Research 12, pp. 2825--2830, 2011.
+
+\item VirusTotal API v3 Documentation. Google LLC, 2024. Available at: https://developers.virustotal.com/reference/overview
+
+\item Google Safe Browsing API v4 Documentation. Google LLC, 2024. Available at: https://developers.google.com/safe-browsing
+
+\item AbuseIPDB API Documentation. Marathon Studios Inc., 2024. Available at: https://www.abuseipdb.com/api.html
+
+\item python-jose: JSON Web Tokens in Python. Available at: https://python-jose.readthedocs.io
+
+\item Resend Email API Documentation. Resend Inc., 2024. Available at: https://resend.com/docs
+
+\item Richardson, L., and Ruby, S., RESTful Web Services. O'Reilly Media, 2018.
+
+\item Vite Documentation. Evan You, 2024. Available at: https://vitejs.dev
+
+\item IPInfo API Documentation. IPinfo LLC, 2024. Available at: https://ipinfo.io/developers
+
+\end{enumerate}
+
+
+\end{document}

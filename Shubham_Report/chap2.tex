@@ -1,0 +1,95 @@
+\chapter{System Study}
+
+This chapter describes the existing approaches used for cybersecurity monitoring and threat detection in enterprise and personal computing environments. It explains how organisations currently detect intrusions, analyse phishing threats, and manage user risk. It discusses the flow of data in traditional security systems, highlights their critical limitations, and justifies the need for an integrated, AI-powered solution like SmartSec. The proposed system, its objectives, and feasibility aspects are discussed in detail.
+
+\section{Existing System}
+
+The existing approach to cybersecurity monitoring and threat detection is predominantly reactive, fragmented, and heavily dependent on manual analyst intervention or expensive enterprise-grade security suites that are inaccessible to small teams and individual users.
+
+\subsection*{Signature-Based Intrusion Detection Systems}
+
+Traditional IDS tools such as Snort and Suricata use a database of known attack signatures to detect malicious network traffic. While effective against known threats, they are fundamentally incapable of detecting zero-day exploits or novel attack vectors. Their signature databases require continuous manual updates, and they produce high false-positive rates that fatigue security operations centre (SOC) analysts.
+
+\subsection*{Manual Log Analysis}
+
+Many small and mid-sized organisations rely on system administrators to manually review server logs and authentication events for suspicious activity. This process is entirely unscalable, prone to human error, and typically results in delayed incident response. Critical events may go unnoticed for hours or days during high-volume log periods.
+
+\subsection*{URL Blacklisting Tools}
+
+Browser-level or network-level URL blocklisting tools maintain databases of known phishing and malware domains. These databases are inherently reactive --- a URL must already be reported and classified before it can be blocked. Newly registered phishing domains, typosquatted URLs, and URL-shortener chains evade detection until the database is updated.
+
+\subsection*{Disconnected Security Tools}
+
+Most organisations use separate tools for network monitoring, email filtering, antivirus, and risk assessment. These tools do not share data or provide a unified risk view. A user affected by multiple low-severity events across different tools may not be identified as a high-risk account because no single tool has access to the full event picture.
+
+\subsection*{Flow of Data in Existing Systems}
+
+In the existing model, network traffic logs are collected by an IDS and stored in a separate SIEM (Security Information and Event Management) system. Phishing alerts come from a separate email gateway or browser extension. Authentication failures are logged in an Active Directory event log. Risk assessments are performed quarterly by security consultants. There is no automated, real-time aggregation of these signals into a unified user risk score, and no automated alerting mechanism that correlates events across modules.
+
+\section{Limitations}
+
+The existing systems suffer from several critical limitations that directly motivated the development of SmartSec:
+
+\begin{itemize}
+    \item \textbf{Reactive Detection:} Signature-based IDS and URL blacklists can only detect known threats, leaving organisations vulnerable to novel attack patterns.
+    \item \textbf{No Integrated Risk View:} Security events from authentication, network, and phishing modules are handled in separate silos with no cross-module risk aggregation.
+    \item \textbf{No Automated Alerting:} Most small-scale deployments lack automated email or push notifications for high-severity security events, delaying incident response.
+    \item \textbf{High Cost and Complexity:} Enterprise-grade SIEM solutions are prohibitively expensive and complex for small teams, academic institutions, and individual users.
+    \item \textbf{No Time-Based Risk Decay:} Existing static risk scores do not account for the passage of time. An incident from three months ago should contribute less to current risk than a recent event.
+    \item \textbf{Limited Scalability:} Manual log review and rigid rule-based systems cannot scale to handle modern traffic volumes or the speed of contemporary cyberattacks.
+    \item \textbf{Poor User Experience:} Most security dashboards are designed for expert analysts and lack user-friendly visualisations or actionable guidance for non-technical users.
+\end{itemize}
+
+\section{Proposed System}
+
+The proposed SmartSec platform introduces a fundamentally different approach to personal and small-team cybersecurity monitoring --- one that combines unsupervised machine learning for anomaly detection, multi-API threat intelligence for phishing analysis, and a stateful, time-decayed risk scoring engine, all accessible through an intuitive React web application.
+
+\subsection*{Proposed Flow of the System}
+
+The proposed data flow begins with the user authenticating via JWT credentials or Google/GitHub OAuth through the Supabase OAuth provider. Upon login, the system assesses login risk factors (off-hours access, new IP address, high failed-attempt count) and records a login event with an associated risk delta. The user accesses the unified dashboard, which aggregates live data from all six backend modules.
+
+For IDS analysis, synthetic or real network traffic features are submitted to the IsolationForest ML model, which returns a binary classification (normal/anomaly) with a confidence score. For phishing detection, a URL is submitted to the 19-signal heuristic engine and simultaneously queried against VirusTotal, Google Safe Browsing, and AbuseIPDB. The combined verdict (Safe, Suspicious, or Phishing) is returned and persisted. Each security event triggers the risk engine, which applies the appropriate weighted delta, recalculates the user's risk score with exponential time decay, and creates an in-app notification. High and Critical events additionally trigger an automated HTML email alert via the Resend API. The notification centre polls the backend every 30 seconds to display real-time unread alerts.
+
+\subsection*{Organisation Hierarchy and System Levels}
+
+The system operates at two distinct access levels:
+
+\begin{itemize}
+    \item \textbf{End User Level:} The registered user monitors their security dashboard, submits URLs for phishing analysis, reviews IDS anomaly reports, tracks their risk score history, manages notification preferences, and updates their profile and security settings.
+    \item \textbf{System / Infrastructure Level:} The FastAPI backend manages all business logic including ML inference, threat API orchestration, risk score calculation, database transactions, and security enforcement. The Supabase PostgreSQL database persists all events, scan results, and user data with full timestamps for audit compliance.
+\end{itemize}
+
+\subsection*{Features of the Proposed System}
+
+\begin{itemize}
+    \item AI-powered anomaly detection using IsolationForest trained on synthesised network traffic feature vectors.
+    \item 19-signal phishing URL heuristic engine combined with three live threat intelligence API integrations.
+    \item Weighted, time-decayed risk scoring with 13 distinct event types and automatic email alerts.
+    \item Real-time notification centre with 30-second polling and unread badge count.
+    \item Full login audit trail recording IP address, event type, risk flags, and timestamp for every authentication event.
+    \item Secure JWT and Google/GitHub OAuth 2.0 authentication with bcrypt password hashing (12 rounds).
+    \item Responsive, dark-mode React dashboard with Recharts area charts, radar charts, pie charts, and a risk gauge.
+    \item Docker and Render deployment support for the backend, and Vercel deployment for the frontend.
+\end{itemize}
+
+\subsection*{Overcoming Existing Limitations}
+
+The proposed system directly addresses every limitation identified in the existing approach. The IsolationForest ML model detects anomalous traffic patterns without requiring known-threat signatures, eliminating the zero-day blindspot. Multi-API phishing analysis combines heuristics with live reputation data, dramatically reducing the false-negative rate of URL classification. The unified risk score aggregates events across all modules, providing a cross-domain security posture view absent from siloed tools. Exponential time decay ensures the risk score accurately reflects current threat exposure rather than historical incidents. Automated Resend email alerts close the response gap for High and Critical events. The React dashboard makes security data accessible and actionable for non-expert users at zero additional tooling cost.
+
+\section{Objectives}
+
+The primary objectives of the SmartSec AI-Based Cyber Defense Platform are: to develop an intelligent, full-stack cybersecurity monitoring platform that detects network intrusions, phishing threats, and suspicious authentication events using AI and machine learning techniques; to build a reliable phishing URL analysis module that combines heuristic signals with live threat intelligence APIs to deliver high-confidence URL verdicts; to implement an adaptive, time-decayed risk scoring engine that maintains a dynamic, per-user security posture score based on accumulated security events; to provide real-time, in-app and email notifications for High and Critical security events to enable rapid incident response; and to deliver a secure, deployable full-stack application built on industry-standard technologies with comprehensive authentication, audit logging, and containerisation support.
+
+\section{Feasibility Studies}
+
+\subsection*{Economical Feasibility}
+
+The system is developed using entirely open-source technologies including Python, FastAPI, React.js, and scikit-learn. Supabase provides a generous free tier that fully supports this project's database requirements. The three threat intelligence APIs (VirusTotal, Google Safe Browsing, AbuseIPDB) each offer free tiers suitable for moderate usage volumes. Resend provides 3,000 free emails per month for alert delivery. The deployment infrastructure uses Render's free tier for the backend and Vercel's free tier for the frontend, resulting in a near-zero operational cost for an academic deployment.
+
+\subsection*{Technical Feasibility}
+
+The system is built on a mature, well-documented technology stack. FastAPI is one of the fastest Python web frameworks available, with native async support and automatic OpenAPI documentation generation. The IsolationForest algorithm from scikit-learn is computationally efficient and suitable for real-time inference on modest hardware. React 18 with Vite provides an exceptional developer experience and fast production builds. Supabase's PostgreSQL backend offers enterprise-grade reliability with a developer-friendly API. All chosen technologies have large communities, extensive documentation, and long-term support guarantees.
+
+\subsection*{Operational Feasibility}
+
+The system is designed for ease of use by both technical and non-technical users. The React frontend provides an intuitive navigation sidebar, real-time data visualisations, and clearly labelled security modules. The API documentation auto-generated at \texttt{/docs} enables straightforward integration testing and third-party integration. Docker containerisation enables simple DevOps workflows. The configuration-driven \texttt{.env} architecture means the system can be adapted to different deployment environments without code changes. The system is suitable for use by individual security enthusiasts, academic institutions, and small security teams.

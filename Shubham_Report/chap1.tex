@@ -1,0 +1,43 @@
+\thispagestyle{empty}
+\chapter{Introduction}
+\section{Introduction to Project}
+
+The rapid proliferation of internet-connected systems and cloud-based services has dramatically expanded the attack surface available to malicious actors. Organisations of all sizes face an increasing volume and sophistication of cyber threats including network intrusion attempts, phishing campaigns, brute-force credential attacks, and distributed denial-of-service attacks. Traditional rule-based security tools are rigid, require constant manual signature updates, and are incapable of detecting novel or evolving attack patterns. There is a critical need for intelligent, adaptive, and automated cybersecurity solutions that can detect threats in real time and provide actionable guidance to security teams and individual users.
+
+The project titled \textbf{``SmartSec --- AI-Based Cyber Defense Platform''} addresses these challenges by providing a full-stack, AI-powered cybersecurity platform that integrates multiple detection and monitoring modules into a unified, real-time dashboard. The system combines a machine learning-based Intrusion Detection System (IDS) using the IsolationForest unsupervised anomaly detection algorithm, a multi-signal phishing URL analyser cross-referencing three live threat intelligence APIs (VirusTotal, Google Safe Browsing, and AbuseIPDB), and a weighted adaptive risk scoring engine that tracks per-user security posture over time.
+
+The application is architected as a modern full-stack web system with a FastAPI (Python) backend, a React 18 frontend with Vite, a PostgreSQL database hosted on Supabase, and JWT plus OAuth 2.0 authentication. The platform features a live notification centre, a complete login audit trail, and automated email alerts for high-severity security events, making it suitable for both individual users seeking to monitor their own account security and security analysts requiring an extensible monitoring dashboard.
+
+\section{Domain Knowledge}
+
+This project spans several intersecting domains of computer science, software engineering, and cybersecurity:
+
+\begin{itemize}
+    \item \textbf{Machine Learning and Anomaly Detection:} The IDS module uses scikit-learn's IsolationForest algorithm, an unsupervised ensemble method that detects anomalies by isolating data points in a random forest. Network traffic feature vectors are generated and evaluated against the trained model to classify sessions as normal or anomalous.
+    \item \textbf{Threat Intelligence APIs:} The phishing detector integrates VirusTotal API v3, Google Safe Browsing API v4, and AbuseIPDB to cross-reference URLs and IP addresses against continuously updated threat databases, combining crowd-sourced intelligence with Google's malware detection infrastructure.
+    \item \textbf{Adaptive Risk Scoring:} A weighted event scoring system assigns severity deltas (+5 to +28) for different event types and applies an 8\% per-day exponential time decay, ensuring that old incidents do not permanently inflate a user's risk profile.
+    \item \textbf{RESTful API Development:} FastAPI provides a high-performance asynchronous REST API layer. Six modular routers handle authentication, IDS, phishing, risk, dashboard, and notifications, each with full Pydantic schema validation and JWT middleware protection.
+    \item \textbf{Full-Stack Web Development:} React 18 with Vite delivers a component-based, single-page application frontend featuring Recharts data visualisations, protected routing, real-time notification polling, and a responsive dark-mode design system built entirely with Vanilla CSS.
+    \item \textbf{Database Engineering:} Supabase provides a hosted PostgreSQL instance with a structured schema encompassing seven tables: users, login\_events, ids\_logs, url\_scans, risk\_events, notifications, and alerts.
+    \item \textbf{Security Engineering:} JWT token-based authentication with 30-minute expiry, bcrypt password hashing (12 rounds), Google and GitHub OAuth 2.0 integration, and CORS middleware restrict access to all API endpoints.
+\end{itemize}
+
+
+\section{Problem Description}
+
+Modern organisations face an overwhelming volume of security events daily. Manual monitoring of logs, IP addresses, and URL threats is infeasible at scale. Existing solutions are either too expensive for small teams, too complex to configure, or too narrow in scope --- addressing only one type of threat while ignoring others.
+
+Standard keyword-based or signature-based intrusion detection systems fail to detect zero-day attacks and novel traffic patterns. They require constant manual signature database updates and produce high false-positive rates that fatigue security analysts. An ML-based anomaly detection approach using unsupervised learning is better suited for detecting previously unseen attack patterns without requiring labelled training data.
+
+Phishing attacks remain the leading vector for credential theft and malware distribution. Simple URL blocklists quickly become outdated. A multi-API approach combining heuristic signals (URL length, entropy, suspicious TLDs, IP-based URLs) with live reputation lookups delivers higher accuracy and lower false-negative rates than any single signal source.
+
+Without a unified risk view, individual security events from IDS, phishing scans, and authentication failures exist in silos. A user may have experienced multiple low-level incidents that, taken individually, appear benign but together indicate an active attack. A cumulative, time-decayed risk score bridges this gap by maintaining a holistic security posture score that evolves with ongoing activity.
+
+The system includes two main actors:
+
+\begin{itemize}
+    \item \textbf{The End User / Security Analyst} --- who registers an account, monitors their security dashboard, scans URLs, reviews IDS anomaly reports, and receives notifications and email alerts for critical events.
+    \item \textbf{Administrator} --- manages system configurations, monitors application health via the /health endpoint, and oversees the Supabase database schema.
+\end{itemize}
+
+Key business rules include: only authenticated users may access any security module; all scan results and login events are persisted for audit; risk scores are automatically recalculated with decay on every security event; and email alerts are triggered automatically for High and Critical severity incidents.

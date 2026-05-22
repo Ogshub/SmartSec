@@ -1,0 +1,41 @@
+\chapter{Limitations and Future Enhancement}
+
+\section{Limitations}
+Although the SmartSec platform successfully fulfils its intended objectives, the following limitations have been identified during development and testing:
+
+\begin{itemize}
+    \item \textbf{Synthetic IDS Training Data:} The IsolationForest model is trained on synthetically generated network traffic data rather than real-world labelled network captures (e.g., KDD Cup or NSL-KDD datasets). While the synthetic data covers representative normal and anomalous patterns, the model's generalisation to real production network traffic may require retraining on domain-specific data.
+
+    \item \textbf{Threat API Rate Limits:} The phishing detection module relies on VirusTotal, Google Safe Browsing, and AbuseIPDB APIs, each of which enforces rate limits on free-tier accounts. Under high scan volumes, API quota exhaustion causes the system to fall back to heuristic-only analysis, which may reduce verdict accuracy for borderline URLs.
+
+    \item \textbf{No Real-Time Network Packet Capture:} The IDS module currently analyses synthesised feature vectors rather than live network packet captures from the host machine. Integration with a packet capture library (e.g., Scapy or Zeek) would enable genuine real-time traffic monitoring.
+
+    \item \textbf{Single-User Risk Scope:} The risk scoring engine currently operates at the individual user account level. It does not support organisation-level or group-level risk aggregation, limiting its applicability for team-based security operations.
+
+    \item \textbf{JWT Blacklisting:} The current logout implementation does not maintain a server-side token blacklist. A stolen JWT token remains valid until its 30-minute expiry, which is a known limitation of stateless JWT architectures without a token revocation mechanism.
+
+    \item \textbf{Limited Email Alert Customisation:} Email alerts are currently sent using a fixed HTML template via the Resend API. Users cannot configure alert thresholds, frequency caps, or email template preferences through the settings UI.
+
+    \item \textbf{No Mobile Application:} The platform is currently web-only. Security monitoring is most effective when available on mobile devices, which would enable on-the-go alert review and incident response.
+\end{itemize}
+
+\section{Future Enhancements}
+The following enhancements are proposed to significantly improve the system's detection capabilities, usability, and deployment flexibility:
+
+\begin{itemize}
+    \item \textbf{Real Network Traffic Integration:} Integrate Scapy or a Zeek-based network tap to capture and analyse live network packets, feeding real traffic feature vectors to the IsolationForest model for genuine real-time intrusion detection.
+
+    \item \textbf{Deep Learning IDS Models:} Replace or augment the IsolationForest model with LSTM-based or Autoencoder-based deep learning models trained on publicly available network intrusion datasets (NSL-KDD, CICIDS2017) for improved detection accuracy and reduced false-positive rates.
+
+    \item \textbf{Multi-Tenant / Team Risk Dashboards:} Extend the risk scoring engine to support organisation-level accounts, allowing security managers to view aggregated risk scores and event timelines across all team members from a single administrative dashboard.
+
+    \item \textbf{JWT Token Blacklisting:} Implement a Redis-based token blocklist to support immediate token revocation on logout and password change, eliminating the 30-minute window of stolen token validity.
+
+    \item \textbf{Threat Hunting and SIEM Integration:} Add export functionality to stream risk events and scan results to external SIEM platforms (e.g., Splunk, Elastic SIEM) via syslog or Webhook integrations for enterprise-grade security operations.
+
+    \item \textbf{Mobile Application:} Develop a React Native or Flutter mobile application for iOS and Android to enable push notification delivery and on-the-go security monitoring and URL scanning.
+
+    \item \textbf{Advanced Analytics and Reporting:} Add PDF report generation for security audit trails, weekly automated email digests summarising the user's security posture, and advanced Recharts visualisations including heatmaps and correlation matrices.
+
+    \item \textbf{Geolocation-Based Anomaly Detection:} Integrate IPInfo's geolocation data with the login risk assessment module to flag impossible travel scenarios (logins from geographically distant locations within a short time window) as Critical severity events.
+\end{itemize}

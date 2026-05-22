@@ -1,0 +1,21 @@
+%%%%%%%%%%%%%%%%%%% Abstract
+\newpage
+\thispagestyle{empty}
+
+\begin{center}
+\textbf{\LARGE{Abstract}}
+\end{center}
+
+{\setstretch{1.5}
+\textit{SmartSec} is a full-stack AI-powered cybersecurity platform designed to provide real-time, multi-layered protection against modern cyber threats. The system integrates an Intrusion Detection System (IDS) based on the scikit-learn IsolationForest machine learning algorithm, a multi-signal phishing URL detector that cross-references three external threat intelligence APIs, an adaptive risk scoring engine with exponential time decay, and a live notification centre --- all consolidated into a unified, responsive web dashboard.
+
+The primary objective of this project is to demonstrate how artificial intelligence and machine learning techniques can be applied within a practical, production-grade application to automate threat detection, reduce manual security monitoring overhead, and provide actionable, data-driven security insights to end users. The system accepts network traffic feature vectors for anomaly detection, URLs for phishing analysis, and continuously monitors authentication events to compute a dynamic risk score for each user.
+
+The backend is developed using FastAPI (Python 3.11+), integrated with a PostgreSQL database via Supabase, and secured with JWT-based authentication and Google/GitHub OAuth 2.0. The phishing module combines 19 heuristic signals with live lookups against VirusTotal API v3, Google Safe Browsing API v4, and AbuseIPDB to deliver high-confidence URL verdicts. The risk engine computes a per-user score between 0 and 100 using a weighted event table and applies an 8\% per-day exponential decay, triggering email alerts via the Resend API for High and Critical severity events. The frontend is built with React 18 and Vite, using Vanilla CSS and Recharts for a fully responsive, dark-themed interface with animated data visualisations.
+
+Overall, SmartSec provides a comprehensive, deployable cyber defence platform that combines machine learning, external threat intelligence, and real-time monitoring into a cohesive and extensible security solution.
+}
+
+\vspace{0.5cm}
+
+\textbf{Keywords:} \textit{SmartSec, IsolationForest, Phishing Detection, Risk Scoring, FastAPI, React.js, Supabase, JWT, VirusTotal, Google Safe Browsing, Machine Learning, Anomaly Detection}
