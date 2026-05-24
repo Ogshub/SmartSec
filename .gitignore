@@ -51,3 +51,49 @@ yarn-error.log*
 # ── Misc ─────────────────────────────────────────────────────────────────────
 .gemini/
 implementation.md
+
+# ── Archives & Compressed Files ──────────────────────────────────────────────
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+*.gz
+
+# ── Documents & Office Files (large binaries) ────────────────────────────────
+*.pdf
+*.pptx
+*.ppt
+*.docx
+*.doc
+*.xlsx
+*.xls
+
+# ── Database & Cache ─────────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+.eslintcache
+
+# ── LaTeX Auxiliary Files ────────────────────────────────────────────────────
+*.aux
+*.lof
+*.log
+*.lot
+*.toc
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+$reportDir/
+
+# ── Redundant/Unoptimized Report Diagrams ────────────────────────────────────
+Shubham_Report/*_new.png
+Shubham_Report/Activity Diagram.png
+Shubham_Report/ER.png
+Shubham_Report/Gaant.png
+Shubham_Report/UML CASE.png
+Shubham_Report/DFD1.png
+
+
+
