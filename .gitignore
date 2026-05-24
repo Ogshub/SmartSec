@@ -51,6 +51,10 @@ yarn-error.log*
 # ── Misc ─────────────────────────────────────────────────────────────────────
 .gemini/
 implementation.md
+smartsec_presentation_slides.txt
+smartsec_project_documentation.md
+Shubham_Report/
+demo_ui/
 
 # ── Archives & Compressed Files ──────────────────────────────────────────────
 *.zip
